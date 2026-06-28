@@ -19,10 +19,26 @@ using Encryption = TeamCherry.SharedUtils.Encryption;
 
 namespace Modding.Patches
 {
+    internal static class GameManagerHelper
+    {
+        public static void ClearModLocalSettings(int saveSlot)
+        {
+            string path = global::Modding.Patches.GameManager.ModdedSavePath(saveSlot);
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception message)
+            {
+                Modding.Logger.APILogger.LogError(message);
+            }
+        }
+    }
+
     [MonoModPatch("global::GameManager")]
     public class GameManager : global::GameManager
     {
-        private static string ModdedSavePath(int slot) =>
+        internal static string ModdedSavePath(int slot) =>
             Path.Combine
             (
                 Application.persistentDataPath,
@@ -213,7 +229,7 @@ namespace Modding.Patches
                             (
                                 saveSlot,
                                 binary,
-                                delegate(bool didSave)
+                                delegate (bool didSave)
                                 {
                                     this.HideSaveIcon();
                                     callback(didSave);
@@ -226,7 +242,7 @@ namespace Modding.Patches
                             (
                                 saveSlot,
                                 Encoding.UTF8.GetBytes(text),
-                                delegate(bool didSave)
+                                delegate (bool didSave)
                                 {
                                     this.HideSaveIcon();
                                     if (callback != null)
@@ -297,7 +313,7 @@ namespace Modding.Patches
                     using FileStream fileStream = File.OpenRead(path);
                     using var reader = new StreamReader(fileStream);
                     string json = reader.ReadToEnd();
-                    this.moddedData = JsonConvert.DeserializeObject<ModSavegameData>
+                    this.moddedData =JsonConvert.DeserializeObject<ModSavegameData>
                     (
                         json,
                         new JsonSerializerSettings()
@@ -330,7 +346,7 @@ namespace Modding.Patches
             Platform.Current.ReadSaveSlot
             (
                 saveSlot,
-                delegate(byte[] fileBytes)
+                delegate (byte[] fileBytes)
                 {
                     bool obj;
                     try
@@ -437,7 +453,7 @@ namespace Modding.Patches
                 }
                 return;
             }
-            Platform.Current.ReadSaveSlot(saveSlot, delegate(byte[] fileBytes)
+            Platform.Current.ReadSaveSlot(saveSlot, delegate (byte[] fileBytes)
             {
                 if (fileBytes == null)
                 {
@@ -622,6 +638,8 @@ namespace Modding.Patches
             {
                 cursor.Emit(OpCodes.Ldarg_1);
                 cursor.EmitDelegate(global::Modding.ModHooks.OnAfterSaveGameClear);
+                cursor.Emit(OpCodes.Ldarg_1);
+                cursor.EmitDelegate<Action<int>>(global::Modding.Patches.GameManagerHelper.ClearModLocalSettings);
                 cursor.GotoNext();
             }
         }
